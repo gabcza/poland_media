@@ -17,7 +17,7 @@ trust_levels <- c("Completely distrust", "Mostly distrust", "Somewhat distrust",
 
 #dat_raw <- read.csv("/Users/ashleyblum/Downloads/Poland+Media+Project_December+29,+2023_18.27.csv",
 #                      na.strings=c("-99"))
-dat_raw <- read.csv("Poland_Media_Project_January5,2024_12.29.csv",
+dat_raw <- read.csv("Poland+Media+Project_January+5,+2024_14.01.csv",
                     na.strings=c("-99"))
 
 questions <- as.character(dat_raw[1,])
@@ -27,8 +27,7 @@ codebook<- as.data.frame(cbind(vars, questions))
 dat_raw <- dat_raw[-(1:2),]
 
 
-dat_full <- 
-  dat_raw %>%
+dat_full <- dat_raw %>%
   filter(
     consent %in% "I consent, begin the study",
     screener_captcha %in% 15,
