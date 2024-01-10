@@ -17,7 +17,7 @@ trust_levels <- c("Completely distrust", "Mostly distrust", "Somewhat distrust",
 
 #dat_raw <- read.csv("/Users/ashleyblum/Downloads/Poland+Media+Project_December+29,+2023_18.27.csv",
 #                      na.strings=c("-99"))
-dat_raw <- read.csv("Poland+Media+Project_January+5,+2024_14.01.csv",
+dat_raw <- read.csv("Poland+Media+Project_January+9,+2024_18.01.csv",
                     na.strings=c("-99"))
 
 questions <- as.character(dat_raw[1,])
@@ -25,7 +25,6 @@ vars <- colnames(dat_raw)
 codebook<- as.data.frame(cbind(vars, questions))
 
 dat_raw <- dat_raw[-(1:2),]
-
 
 dat_full <- dat_raw %>%
   filter(
@@ -51,7 +50,7 @@ dat_full <- dat_raw %>%
     attention_score = (attention1 + attention2) / 2,
     
     start_date = as.Date(StartDate),
-
+    
     #partisanship and political attitudes
     voted = ifelse(voted == "Yes", 1, 0),
     pisvoted = ifelse(party_voted == "pis", 1, 0),
@@ -65,9 +64,9 @@ dat_full <- dat_raw %>%
     
     #demographics
     education = factor(education, levels = c("Primary school or lower", "Vocational secondary school", "General secondary school",
-                                 "Bachelor's degree", "Advanced degree (Master's, doctorate etc.")),
+                                             "Bachelor's degree", "Advanced degree (Master's, doctorate etc.")),
     ba_grad = ifelse(education %in% c("Bachelor's degree", "Advanced degree (Master's, doctorate etc."), 1, 0),
-
+    
     female = ifelse(gender == "Female", 1, 0),
     income = factor(income),
     income = droplevels(income, "Prefer not to say"),
@@ -75,7 +74,7 @@ dat_full <- dat_raw %>%
     age = as.numeric(age),
     
     #Media Use
-
+    
     media_pref_tv = ifelse(media_pref == "tv", 1, 0),
     media_pref_online = ifelse(media_pref == "online", 1, 0),
     
@@ -144,7 +143,7 @@ dat_full <- dat_raw %>%
     party_coop = rescale(as.numeric(party_coop_1), from = c(0,10), to = c(0,1)),
     
     Finished = case_when(Finished == "True" ~ 1,
-                       Finished == "False" ~ 0)
+                         Finished == "False" ~ 0)
   ) %>%
   
   rowwise() %>%
@@ -155,19 +154,64 @@ dat_full <- dat_raw %>%
     m_outsider_threat = mean(m_threat_traditions, m_threat_organizations, m_threat_values, m_threat_safety,
                              m_open_integration, m_open_organizations, m_open_positive, m_open_admit, na.rm = T),
     m_oppo_distrust = mean(m_oppo_institutions, m_oppo_corruption, m_oppo_discord, na.rm = T)
-    ) %>%
+  ) %>%
   mutate(
     source_rec_tvp = ifelse(source_rec_1 == "tvp", 1, 0),
     source_rec_tvn = ifelse(source_rec_2 == "tvn", 1, 0)
   )
 
 #### TO DO: ADD IN ALL TRIAL LEVEL DATA
-#I think we want to create 8 columns for each person for each response (trustworthy, truthful, objective + the trust index (the average of the three responses) i.e. 32 columns total) representing each of their trials and a column representing the average of all 8 trials for the respondent  
-  
- 
-#Main data set for those who finished the survey
-dat <- dat_full %>% filter(Finished == 1)
+#I think we want to create 8 columns for each person for each response
+#(trustworthy, truthful, objective + the trust index (the average of the three responses) 
+# i.e. 32 columns total) representing each of their trials and a column representing the average 
+# of all 8 trials for the respondent  
+# GC: I don't think we need all 32 columns per subject as we will only use the 
+# average trust score, right? So 8 values with means (so far in long format but can change it to
+# wide format)
 
+#Main data set for those who finished the survey
+dat <- dat_full %>% filter(Finished == 1) %>%
+  ungroup() %>%
+  mutate(subj_id = row_number()) 
+
+# select vars with trust responses and calculate trust index
+dat_long <- dat %>% 
+  ungroup() %>%
+  dplyr::select(subj_id, matches("^tvp|^tvn")) %>%
+  gather("var", "value", -subj_id) %>%
+  mutate(value = as.numeric(value)) %>%
+  filter(!is.na(value)) %>%
+  mutate(value = scales::rescale(value)) %>% 
+  separate(var, into = c("trial", "var"))
+
+# calculate trust index 
+dat_long <- dat_long %>% group_by(subj_id, trial) %>%
+  dplyr::summarize(trust_ind = mean(value, na.rm = TRUE)) %>% ungroup()
+
+# add ind-level variables
+dat_long <- dat_long %>% 
+  left_join(dat %>% dplyr::select(
+    "subj_id", "treatment", "source",
+    "voted", "party_voted",
+    "pro_pis", "anti_pis",
+    "pol_interest_n",
+    "use_tvp", "use_tvn",
+    "reg_tvp", "reg_tvn",
+    "attention_score",
+    #"start_date",
+    "age", "female", "income",
+    "education", "ba_grad", "employment"),
+    by = "subj_id") %>%
+  mutate(counter_source = 
+           case_when(source == "tvp" & anti_pis == 1 ~ 1,
+                     source == "tvn" & pro_pis == 1 ~ 1,
+                     source == "tvp" & pro_pis == 1 ~ 0,
+                     source == "tvn" & anti_pis == 1 ~ 0),
+         aligned_source = 
+           case_when(source == "tvn" & anti_pis == 1 ~ 1,
+                     source == "tvp" & pro_pis == 1 ~ 1,
+                     source == "tvn" & pro_pis == 1 ~ 0,
+                     source == "tvp" & anti_pis == 1 ~ 0))
 
 
 
@@ -187,7 +231,7 @@ dat_long <- dat %>%
     "truthful_1",  "truthful_2",       #truthful outcomes
     "truthful_3",  "truthful_4", "truthful_5",
     "truthful_6",   "truthful_7", "truthful_8", 
-  
+    
     "objective_1",  "objective_2",          #objective outcomes
     "objective_3",  "objective_4", "objective_5",
     "objective_6", "objective_7", "objective_8"
@@ -201,9 +245,9 @@ dat_long <- dat %>%
                         str_detect(response_indicator, "_cnn_2") ~ cnn_id_2),
     source = case_when(str_detect(excerpt,"fox") ~ "fox",       #excerpt source
                        str_detect(excerpt, "cnn") ~ "cnn",
-    question = case_when(
-      source == "cnn" ~ str_extract(response_indicator, ".+(?=_cnn?)"), 
-      source == "fox" ~ str_extract(response_indicator, ".+(?=_fox?)"))
+                       question = case_when(
+                         source == "cnn" ~ str_extract(response_indicator, ".+(?=_cnn?)"), 
+                         source == "fox" ~ str_extract(response_indicator, ".+(?=_fox?)"))
     ),
     trial = paste(ResponseId, excerpt, sep = "_")
   ) %>%
@@ -234,7 +278,7 @@ dat_long <- dat %>%
                      source == "tvp" & pro_pis == 1 ~ 1,
                      source == "tvn" & pro_pis == 1 ~ 0,
                      source == "tvp" & anti_pis == 1 ~ 0),
-         )
+  )
 
 
 
