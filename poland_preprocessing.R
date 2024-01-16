@@ -206,7 +206,7 @@ dat_long <- left_join(trust_dat, trial_order_dat)
 # add ind-level variables to long data
 dat_long <- dat_long %>% 
   left_join(dat %>% dplyr::select(
-    "ResponseId", "treatment", "source",
+    "ResponseId", "treatment", "source", "topic",
     "voted", "party_voted", "party_supported",
     "pro_pis", "anti_pis",
     "pol_interest_n",
