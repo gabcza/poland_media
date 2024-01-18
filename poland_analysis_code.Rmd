@@ -1,0 +1,446 @@
+---
+title: "Poland Analysis Code"
+output: pdf_document
+date: "2024-01-16"
+---
+
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(sandwich)
+library(lmtest)
+library(kableExtra)
+library(scales)
+source("/Users/ashleyblum/Documents/Work/Research/ScaleReduce.R")
+```
+
+```{r load, include=FALSE}
+
+load("/Users/ashleyblum/Google Drive/Poland_Media/dat.RData")
+
+load("/Users/ashleyblum/Google Drive/Poland_Media/dat_long.RData")
+
+#excerpt_topics <- read.csv("/Users/ashleyblum/Documents/Work/Research/Source Branding and Foreign Affairs/excerpt_topics.csv")
+#load("/Users/ashleyblum/Documents/Work/Research/Source Branding and Foreign Affairs/text_dat_branding.RData")
+
+
+"%notin%" <- function(x, y) !(x %in% y)
+
+
+```
+
+# Intro
+
+These are the preliminary results from our Survey in August 2023. The main DV measured on a scale from 0 to 1 with higher values indicating higher trust. 
+
+
+The trust index is the mean of the following items on a 0 to 1 scale: 
+\begin{align*}
+\text{Untrustworthy} ----&--- \text{Trustworthy}\\
+\text{Misleading} ----&--- \text{Truthful}\\
+\text{Biased} ----&--- \text{Objective}\\
+\end{align*} 
+
+# Summarize Responses
+
+## Blind Condition Outcome Mean by Party and Source
+```{r response_summaries_blind, include=FALSE}
+party_summary <- dat_long %>%
+  filter(treatment == "blind") %>%
+  group_by(pro_pis) %>%
+  summarise(
+    trust_index = mean(trust_index, na.rm = T),
+    trustworthy = mean(trustworthy, na.rm = T),
+    truthful = mean(truthful, na.rm = T),
+    objective = mean(objective, na.rm = T)
+    ) %>% 
+  mutate_if(is.numeric, round, digits = 2)
+
+
+source_summary <- dat_long %>%
+  filter(treatment == "blind") %>%
+  group_by(source) %>%
+  summarise(
+    trust_index = mean(trust_index, na.rm = T),
+    trustworthy = mean(trustworthy, na.rm = T),
+    truthful = mean(truthful, na.rm = T),
+    objective = mean(objective, na.rm = T)
+    ) %>% 
+  mutate_if(is.numeric, round, digits = 2)
+
+
+```
+
+```{r print_response_summaries, echo=FALSE, results='asis'}
+kable(party_summary)
+kable(source_summary)
+```
+
+```{r}
+#Std. Dev Trust Index
+sd(dat_long$trust_index, na.rm = T)
+
+```
+
+##Distribution of the Outcome Variable
+
+```{r hist_trust, echo=FALSE}
+hist(dat_long$trust_index, xlab = "Trust Index", main = "Histogram of Trust Index", breaks = 30)
+```
+`
+
+```{r dist_trustworthy, echo=FALSE}
+barplot(prop.table(table(dat_long$trustworthy)), xlab = "Trustworthy", ylab = "Proportion", main = "Distribution of 'Trustworthy'",
+        col = "steelblue", border = "black", width = 0.6, names.arg = c("0", ".17", ".33", ".5", ".67", ".83", "1"))
+```
+
+```{r dist_objective, echo=FALSE}
+barplot(prop.table(table(dat_long$objective)), xlab = "Objective", ylab = "Proportion", main = "Distribution of 'Objective'",
+        col = "steelblue", border = "black", width = 0.6, names.arg = c("0", ".17", ".33", ".5", ".67", ".83", "1"))
+```
+
+```{r dist_truthful, echo=FALSE}
+barplot(prop.table(table(dat_long$truthful)), xlab = "Truthful/Misleading", ylab = "Proportion", main = "Distribution of 'Truthful/Misleading'",
+        col = "steelblue", border = "black", width = 0.6, names.arg = c("0", ".17", ".33", ".5", ".67", ".83", "1"))
+```
+
+
+\clearpage
+
+# Main Source Cue Effects
+
+These are the main results from our test of the source cue effect. In all cases, we are comparing responses in the blind condition to responses in the revealed condition, conditional on source. As pre-specified, we fit separate models for Democrats and Republicans. 
+
+Here is the code for fitting the models. Note that for each we fit an OLS model on treated with excerpt fixed effects. Standard errors are clustered on respondent. 
+
+```{r fit_main, message=FALSE}
+
+dat_long <- dat_long %>%
+  mutate(treated = case_when(treatment == "blind" ~ 0,
+                             treatment == "revealed" ~ 1))
+
+dat <- dat %>%
+  mutate(treated = case_when(treatment == "blind" ~ 0,
+                             treatment == "revealed" ~ 1))
+
+#fit main models, OLS
+
+#note I'll be using p for pro-pis and d for Democratic Opposition
+ 
+
+#TVP effect on pro-pis
+m1_p_tvp <- lm(trust_index ~ treated + excerpt,
+              data = dat_long[dat_long$pro_pis == 1 &
+                                dat_long$source == "tvp",])
+m1_p_tvp_cl <- coeftest(m1_p_tvp, vcov = vcovCL, cluster = ~ResponseId)
+
+
+
+#TVN effect on anti-pis
+m1_d_tvn <- lm(trust_index ~ treated + excerpt,
+              data = dat_long[dat_long$anti_pis == 1 &
+                                dat_long$source == "tvn",])
+m1_d_tvn_cl <- coeftest(m1_d_tvn, vcov = vcovCL, cluster = ~ResponseId)
+
+
+#TVN effect on pro-pis
+m1_p_tvn <- lm(trust_index ~ treated + excerpt,
+              data = dat_long[dat_long$pro_pis == 1 &
+                                dat_long$source == "tvn",])
+m1_p_tvn_cl <- coeftest(m1_p_tvn, vcov = vcovCL, cluster = ~ResponseId)
+
+
+
+#tvp effect on anti-pis
+m1_d_tvp <- lm(trust_index ~ treated + excerpt,
+              data = dat_long[dat_long$anti_pis == 1 &
+                                dat_long$source == "tvp",])
+m1_d_tvp_cl <- coeftest(m1_d_tvp, vcov = vcovCL, cluster = ~ResponseId)
+```
+
+
+\clearpage
+
+The results can be found in Table \ref{tab:main1}. We see that, consistent with our hypotheses, the TVP brand has a positive effect on trust for those who support the PiS party but it has a negative effect on trust for those who supported the opposition coalition. By contrast, the TVN brand has a negative effective on trust for those who support the PiS party but a positive effect on those who support the opposition. The negative effect of TVP for the opposition supporters is especially strong. 
+
+```{r print_main_results, results='asis', message=FALSE, echo=FALSE}
+m1 <- m1_p_tvp
+m2 <- m1_p_tvn
+m3 <- m1_d_tvp
+m4 <- m1_d_tvn
+
+m1_cl <- m1_p_tvp_cl
+m2_cl <- m1_p_tvn_cl
+m3_cl <- m1_d_tvp_cl
+m4_cl <- m1_d_tvn_cl
+
+  
+additional_lines <- c("Excerpt FE", rep("Yes", 4))
+
+stargazer::stargazer(m1, m2, m3, m4,
+                     header = FALSE,
+                     label = "tab:main1", 
+                     title = "Main Source Effect Results",
+                     covariate.labels = c("SourceRevealed"),
+                     dep.var.labels = c("Trust Index"),
+                     column.labels = c("TVP|PiS", "TVN|PiS",  "TVP|DO", "TVN|DO"),
+                     se=list(m1_cl[,2], m2_cl[,2], m3_cl[,2], m4_cl[,2]),
+                     omit.stat = c("f", "rsq", "ser"),
+                     omit = c("excerpt", "Constant"),
+                     add.lines = list(additional_lines), 
+                     notes = "Trust index measured on 0 (low trust) to 1 (high trust)")
+```
+
+```{r cohens_counter}
+#Effect Size, Counter Source
+g0_counter <- na.omit(dat_long$trust_index[dat_long$counter_source == 1 &
+                                             dat_long$treated == 0])
+g1_counter <- na.omit(dat_long$trust_index[dat_long$counter_source == 1 &
+                                             dat_long$treated == 1])
+
+mean(g0_counter)
+mean(g1_counter)
+dim_counter <- mean(g1_counter) - mean(g0_counter) #calc dif in means
+dim_counter
+
+#dif in means as percentage of control mean
+dim_counter / mean(g0_counter, na.rm = T)
+
+sd_pooled_counter <- effectsize::sd_pooled(g0_counter, g1_counter)
+dim_counter / sd_pooled_counter
+
+##use packages to calculate cohen's d
+cohensD_counter <- effsize::cohen.d(g0_counter, g1_counter) #calc cohens d with effsize packages
+cohensD_counter
+```
+
+```{r cohens_aligned}
+#Effect Size Aligned Source
+##control aligned trials - aligned
+g0_aligned <- na.omit(dat_long$trust_index[dat_long$aligned_source == 1 &
+                                             dat_long$treated == 0])
+##treated aligned trials - aligne
+g1_aligned <- na.omit(dat_long$trust_index[dat_long$aligned_source == 1 &
+                                             dat_long$treated == 1])
+
+mean(g0_aligned) 
+mean(g1_aligned)
+dim_aligned <- mean(g1_aligned) - mean(g0_aligned) #calc aligend dif in means
+dim_aligned
+#aligned dif in means as percentage of control mean
+dim_aligned / mean(g0_aligned)
+
+
+cohensD_aligned <- effsize::cohen.d(g0_aligned, g1_aligned) #calc cohens d with effsize packages
+cohensD_aligned
+```
+
+```{r cohens_pis}
+#Effect Size, Split By Party
+
+##PiS Supporters - TVN effect
+
+g0_p_tvn <- na.omit(dat_long$trust_index[dat_long$pro_pis == 1 &
+                                           dat_long$source == "tvn" &
+                                           dat_long$treated == 0])
+g1_p_tvn <- na.omit(dat_long$trust_index[dat_long$pro_pis == 1 &
+                                           dat_long$source == "tvn" &
+                                           dat_long$treated == 1])
+
+mean(g0_p_tvn)
+mean(g1_p_tvn)
+
+dim_rep_tvn <- mean(g1_p_tvn) - mean(g0_p_tvn) #dif in means
+dim_rep_tvn
+sd_pooled_rep_tvn <- effectsize::sd_pooled(g0_p_tvn, g1_p_tvn) #pooled sd
+dim_rep_tvn / sd_pooled_rep_tvn #cohens d manual
+
+cohensD_rep_tvn <- effsize::cohen.d(g0_p_tvn, g1_p_tvn) #calc cohens d with effsize packages
+cohensD_rep_tvn
+```
+
+```{r cohens_dem_opposition}
+##Opposition - tvp Effect
+
+g0_d_tvp <- na.omit(dat_long$trust_index[dat_long$anti_pis == 1 &
+                                           dat_long$source == "tvp" &
+                                           dat_long$treated == 0])
+g1_d_tvp <- na.omit(dat_long$trust_index[dat_long$anti_pis == 1 &
+                                           dat_long$source == "tvp" &
+                                           dat_long$treated == 1])
+
+mean(g0_d_tvp)
+mean(g1_d_tvp)
+
+dim_d_tvp <- mean(g1_d_tvp) - mean(g0_d_tvp) #dif in means
+sd_pooled_d_tvp <- effectsize::sd_pooled(g0_d_tvp, g1_d_tvp) #pooled sd
+dim_d_tvp / sd_pooled_d_tvp #cohens d manual
+
+
+cohensD_d_tvp <- effsize::cohen.d(g0_d_tvp, g1_d_tvp) #calc cohens d with effsize packages
+cohensD_d_tvp
+```
+\clearpage
+
+# Blind Taste Test
+
+
+First we will look at content-based preferences separately for each of our 3 topic groups. These analyses use only the blind condition responses. We ask whether pro-PiS respondents prefer TVP to TVN, even without knowing its source. Note: I use m_btt to refer to blind taste test models
+```{r fit_btt}
+#preference for TVP content blind, general topic, pro-pis
+m_btt_p_gen <- lm(trust_index ~ I(source == "tvp"), data = dat_long[dat_long$treatment == "blind"
+                                                                    & dat_long$pro_pis == 1
+                                                                    & dat_long$topic == "general",])
+m_btt_p_gen_cl <- coeftest(m_btt_p_gen, vcov = vcovCL, cluster = ~ResponseId)
+
+#preference for TVP content blind, general topic, anti-pis
+m_btt_d_gen <- lm(trust_index ~ I(source == "tvp"), data = dat_long[dat_long$treatment == "blind"
+                                                                    & dat_long$anti_pis == 1
+                                                                    & dat_long$topic == "general",])
+m_btt_d_gen_cl <- coeftest(m_btt_d_gen, vcov = vcovCL, cluster = ~ResponseId)
+
+
+#preference for TVP content blind, outsiders topic, pro-pis
+m_btt_p_out <- lm(trust_index ~ I(source == "tvp"), data = dat_long[dat_long$treatment == "blind"
+                                                                    & dat_long$pro_pis == 1
+                                                                    & dat_long$topic == "outsiders",])
+m_btt_p_out_cl <- coeftest(m_btt_p_out, vcov = vcovCL, cluster = ~ResponseId)
+
+#preference for TVP content blind, outsiders topic, anti-pis
+m_btt_d_out <- lm(trust_index ~ I(source == "tvp"), data = dat_long[dat_long$treatment == "blind"
+                                                                    & dat_long$anti_pis == 1
+                                                                    & dat_long$topic == "outsiders",])
+m_btt_d_out_cl <- coeftest(m_btt_d_out, vcov = vcovCL, cluster = ~ResponseId)
+
+
+#preference for TVP content blind, politics topic, pro-pis
+m_btt_p_pol <- lm(trust_index ~ I(source == "tvp"), data = dat_long[dat_long$treatment == "blind"
+                                                                    & dat_long$pro_pis == 1
+                                                                    & dat_long$topic == "politics",])
+m_btt_p_pol_cl <- coeftest(m_btt_p_pol, vcov = vcovCL, cluster = ~ResponseId)
+
+#preference for TVP content blind, politics topic, anti-pis
+m_btt_d_pol <- lm(trust_index ~ I(source == "tvp"), data = dat_long[dat_long$treatment == "blind"
+                                                                    & dat_long$anti_pis == 1
+                                                                    & dat_long$topic == "politics",])
+m_btt_d_pol_cl <- coeftest(m_btt_d_pol, vcov = vcovCL, cluster = ~ResponseId)
+```
+
+
+```{r print_btt_results, results='asis', message=FALSE, echo=FALSE}
+m1 <- m_btt_p_gen
+m2 <- m_btt_p_out
+m3 <- m_btt_p_pol
+
+m1_cl <- m_btt_p_gen_cl
+m2_cl <- m_btt_p_out_cl
+m3_cl <- m_btt_p_pol_cl
+
+
+additional_lines <- c("Excerpt FE", rep("Yes", 4))
+
+stargazer::stargazer(m1, m2, m3,
+                     header = FALSE,
+                     label = "tab:btt_pis", 
+                     title = "Blind Source Preferences: Pro-PiS",
+                     covariate.labels = c("TVP"),
+                     dep.var.labels = c("Trust Index"),
+                     column.labels = c("General", "Globalization",  "Politics"),
+                     se=list(m1_cl[,2], m2_cl[,2], m3_cl[,2]),
+                     omit.stat = c("f", "rsq", "ser"),
+                     add.lines = list(additional_lines), 
+                     notes = "Trust index measured on 0 (low trust) to 1 (high trust)")
+
+
+m1 <- m_btt_d_gen
+m2 <- m_btt_d_out
+m3 <- m_btt_d_pol
+
+m1_cl <- m_btt_d_gen_cl
+m2_cl <- m_btt_d_out_cl
+m3_cl <- m_btt_d_pol_cl
+
+
+additional_lines <- c("Excerpt FE", rep("Yes", 4))
+
+stargazer::stargazer(m1, m2, m3,
+                     header = FALSE,
+                     label = "tab:btt_pis", 
+                     title = "Blind Source Preferences: Anti-PiS",
+                     covariate.labels = c("TVP"),
+                     dep.var.labels = c("Trust Index"),
+                     column.labels = c("General", "Globalization",  "Politics"),
+                     se=list(m1_cl[,2], m2_cl[,2], m3_cl[,2]),
+                     omit.stat = c("f", "rsq", "ser"),
+                     add.lines = list(additional_lines), 
+                     notes = "Trust index measured on 0 (low trust) to 1 (high trust)")
+```
+
+
+#Exposure effects on attitudes
+
+#distribution of measures
+```{r}
+hist(dat$outsider_threat)
+hist(dat$oppo_distrust)
+```
+
+
+```{r}
+plot(density((dat$outsider_threat[dat$pro_pis == 1])), col="blue", main = "Outsider Threat, By Party")
+lines(density((dat$outsider_threat[dat$anti_pis == 1])), col="orange")
+```
+```{r}
+plot(density((dat$oppo_distrust[dat$pro_pis == 1])), col="blue", main = "DO Distrust, By Party")
+lines(density((dat$oppo_distrust[dat$anti_pis == 1])), col="orange")
+```
+
+2nd Order Beliefs 
+
+```{r}
+hist(dat$m_outsider_threat)
+hist(dat$m_oppo_distrust)
+```
+
+
+```{r}
+plot(density((dat$m_outsider_threat[dat$pro_pis == 1])), col="blue", main = "Meta Perceptions: Outsider Threat, By Party")
+lines(density((dat$m_outsider_threat[dat$anti_pis == 1])), col="orange")
+```
+```{r}
+plot(density((dat$m_oppo_distrust[dat$pro_pis == 1])), col="blue", main = "Meta Perceptions: DO Distrust, By Party")
+lines(density((dat$m_oppo_distrust[dat$anti_pis == 1])), col="orange")
+```
+
+```{r}
+dat <- dat %>%
+  mutate(outsider_treated = case_when(
+    articles == 0 ~ 0,
+    source == "tvn" ~ 0,
+    source == "tvp" & topic == "outsiders" ~ 1
+  ))
+
+m_outsider_int <- lm(outsider_threat ~ outsider_treated * pro_pis, data = dat) 
+m_outsider_p <- lm(outsider_threat ~ outsider_treated, data = dat[dat$pro_pis == 1,]) 
+m_outsider_d <- lm(outsider_threat ~ outsider_treated, data = dat[dat$anti_pis == 1,]) 
+
+```
+
+```{r}
+dat <- dat %>%
+  mutate(politics_treated = case_when(
+    articles == 0 ~ 0,
+    source == "tvn" ~ 0,
+    source == "tvp" & topic == "politics" ~ 1
+  ))
+
+m_politics_int <- lm(oppo_distrust ~ politics_treated * pro_pis, data = dat) 
+m_politics_p <- lm(oppo_distrust ~ politics_treated, data = dat[dat$pro_pis == 1,]) 
+m_politics_d <- lm(oppo_distrust ~ politics_treated, data = dat[dat$anti_pis == 1,]) 
+
+```
+
+
+
