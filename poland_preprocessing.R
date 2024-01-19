@@ -16,8 +16,9 @@ trust_levels <- c("Completely distrust", "Mostly distrust", "Somewhat distrust",
                   "Somewhat trust", "Mostly trust", "Completely trust")
 
 
-dat_raw <- read.csv("/Users/ashleyblum/Downloads/Poland+Media+Project_January+12,+2024_13.07.csv",
-                    na.strings=c("-99"))
+dat_raw <- read.csv(#"/Users/ashleyblum/Downloads/Poland+Media+Project_January+12,+2024_13.07.csv",
+  "Poland+Media+Project_January+12,+2024_13.07.csv", #GC: this should work if the csv file is in the same folder as rproj file
+  na.strings=c("-99"))
 
 questions <- as.character(dat_raw[1,])
 vars <- colnames(dat_raw)
@@ -166,11 +167,21 @@ dat_full <- dat_raw %>%
 
 
 
-
 #Main data set for those who finished the survey
 dat <- dat_full %>% filter(Finished == 1) %>%
   ungroup() %>%
-  mutate(subj_id = row_number()) 
+  mutate(subj_id = row_number()) %>%
+  # GC: adding the counter and aligned source vars here 
+  mutate(counter_source = 
+           case_when(source == "tvp" & anti_pis == 1 ~ 1,
+                     source == "tvn" & pro_pis == 1 ~ 1,
+                     source == "tvp" & pro_pis == 1 ~ 0,
+                     source == "tvn" & anti_pis == 1 ~ 0),
+         aligned_source = 
+           case_when(source == "tvn" & anti_pis == 1 ~ 1,
+                     source == "tvp" & pro_pis == 1 ~ 1,
+                     source == "tvn" & pro_pis == 1 ~ 0,
+                     source == "tvp" & anti_pis == 1 ~ 0))
 
 #create small data set of trust data only
 trust_dat <- dat_full %>% 
@@ -206,7 +217,7 @@ dat_long <- left_join(trust_dat, trial_order_dat)
 # add ind-level variables to long data
 dat_long <- dat_long %>% 
   left_join(dat %>% dplyr::select(
-    "ResponseId", "treatment", "source", "topic",
+    "ResponseId", "treatment", "source",
     "voted", "party_voted", "party_supported",
     "pro_pis", "anti_pis",
     "pol_interest_n",
@@ -226,6 +237,8 @@ dat_long <- dat_long %>%
     "attention_score",
     "start_date",
     "age", "female", "income",
+    # GC: adding aligned vs. counter sources here
+    "aligned_source", "counter_source",
     contains("threat_"),
     contains("open_"),
     contains("oppo_"),
@@ -234,25 +247,27 @@ dat_long <- dat_long %>%
     source_rec_tvp,
     source_rec_tvn,
     "education", "ba_grad", "employment"),
-    by = "ResponseId") %>%
-  mutate(counter_source = 
-           case_when(source == "tvp" & anti_pis == 1 ~ 1,
-                     source == "tvn" & pro_pis == 1 ~ 1,
-                     source == "tvp" & pro_pis == 1 ~ 0,
-                     source == "tvn" & anti_pis == 1 ~ 0),
-         aligned_source = 
-           case_when(source == "tvn" & anti_pis == 1 ~ 1,
-                     source == "tvp" & pro_pis == 1 ~ 1,
-                     source == "tvn" & pro_pis == 1 ~ 0,
-                     source == "tvp" & anti_pis == 1 ~ 0))
+    by = "ResponseId") #%>%
+# GC: this bit takes a long time to execute in long data
+#mutate(counter_source = 
+#         case_when(source == "tvp" & anti_pis == 1 ~ 1,
+#                   source == "tvn" & pro_pis == 1 ~ 1,
+#                   source == "tvp" & pro_pis == 1 ~ 0,
+#                   source == "tvn" & anti_pis == 1 ~ 0),
+#       aligned_source = 
+#       case_when(source == "tvn" & anti_pis == 1 ~ 1,
+#                   source == "tvp" & pro_pis == 1 ~ 1,
+#                   source == "tvn" & pro_pis == 1 ~ 0,
+#                   source == "tvp" & anti_pis == 1 ~ 0))
 
 ######
 
 #Create text data set
 
-setwd("/Users/ashleyblum/Google Drive/Poland_Media/stimuli/word_versions")
+#setwd("/Users/ashleyblum/Google Drive/Poland_Media/stimuli/word_versions")# GC: this should work okay without setting new wd
 
 #create list of text files
+excerpt_files <- list.files("stimuli/word_versions") # GC: edit here
 excerpt_files <- list.files()
 excerpt_files <- excerpt_files[!excerpt_files == "Icon\r"]
 excerpt_files
@@ -280,6 +295,9 @@ dat_long <- left_join(dat_long, text_df)
 #dat is the main respondent-level data set and includes only those who finish the study
 #dat full is everyone who consented to participate and passed the initial screens but includes people who dropped out in the middle of the study
 #dat long is 
-save(dat, file = "/Users/ashleyblum/Google Drive/Poland_Media/dat.RData")
-save(dat_full, file = "/Users/ashleyblum/Google Drive/Poland_Media/dat_full.RData")
-save(dat_long, file = "/Users/ashleyblum/Google Drive/Poland_Media/dat_long.RData")
+save(dat, file = #"/Users/ashleyblum/Google Drive/Poland_Media/dat.RData"
+       "dat.RData") # GC: this will save data to the same folder as rproj file
+save(dat_full, file = #"/Users/ashleyblum/Google Drive/Poland_Media/dat_full.RData",
+       "dat_full.RData")
+save(dat_long, file = #"/Users/ashleyblum/Google Drive/Poland_Media/dat_long.RData",
+       "dat_long.RData")
