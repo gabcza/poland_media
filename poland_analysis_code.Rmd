@@ -456,8 +456,140 @@ lines(density((dat$m_outsider_threat[dat$anti_pis == 1])), col="orange")
 plot(density((dat$m_oppo_distrust[dat$pro_pis == 1])), col="blue", main = "Meta Perceptions: DO Distrust, By Party")
 lines(density((dat$m_oppo_distrust[dat$anti_pis == 1])), col="orange")
 ```
-## Anova Analyses
 
+## ANOVAs for control and treatment conditions 
+
+Compares control conditions, i.e., pure control and TVN source with any topic (general, on-topic, and off-topic) both for blind and revealed conditions; and treatment conditions, i.e., TVP source with on-topic topics and both blind and revealed conditions.
+
+```{r}
+# creates condition var for ANOVA
+dat <- dat %>%
+  mutate(condition = as.factor(case_when(
+    articles == 1 ~ (paste0(source, "_", treatment, "_", topic)),
+    articles == 0 ~ "pure_control")), 
+    pro_pis = as.factor(pro_pis))
+```
+
+### DV: outsider threat
+
+#### Control conditions
+
+```{r}
+aov_outsider_control <- aov(data = dat %>% filter(condition == "pure_control" | source == "tvn"),
+               outsider_threat ~ condition * pro_pis)
+summary(aov_outsider_control) # party main effect
+tukey_outsider_control <- TukeyHSD(aov_outsider_control)
+tukey_outsider_control_df <- as.data.frame(tukey_outsider_control[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_outsider_control_df) # differences only for pro-pis and anti-pis respondents
+```
+
+#### Treatment conditions
+```{r}
+aov_outsider_treatment <- aov(data = dat %>% filter(source == "tvp" & topic == "outsiders"),
+                    outsider_threat ~ condition * pro_pis)
+summary(aov_outsider_treatment) # party main effect only
+tukey_outsider_treatment <- TukeyHSD(aov_outsider_treatment)
+tukey_outsider_treatment_df <- as.data.frame(tukey_outsider_treatment[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_outsider_treatment_df)
+```
+
+### DV: democratic opposition distrust
+
+#### Control conditions
+```{r}
+aov_opposition_control <- aov(data = dat %>% filter(condition == "pure_control" | source == "tvn"),
+                              oppo_distrust ~ condition * pro_pis)
+summary(aov_opposition_control) # party main effect
+tukey_opposition_control <- TukeyHSD(aov_opposition_control)
+tukey_opposition_control_df <- as.data.frame(tukey_opposition_control[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_opposition_control_df) # differences only for pro-pis and anti-pis respondents
+```
+
+#### Treatment conditions
+```{r}
+aov_opposition_treatment <- aov(data = dat %>% filter(source == "tvp" & topic == "politics"),
+                                oppo_distrust ~ condition * pro_pis)
+summary(aov_opposition_treatment) # party main effect only
+tukey_opposition_treatment <- TukeyHSD(aov_opposition_treatment)
+tukey_opposition_treatment_df <- as.data.frame(tukey_opposition_treatment[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_opposition_treatment_df)
+```
+
+### DV: meta-perception of outsider threat
+
+#### Control conditions
+```{r}
+aov_m_outsider_control <- aov(data = dat %>% filter(condition == "pure_control" | source == "tvn"),
+                              m_outsider_threat ~ condition * pro_pis)
+summary(aov_m_outsider_control) # party main effect
+tukey_m_outsider_control <- TukeyHSD(aov_m_outsider_control)
+tukey_m_outsider_control_df <- as.data.frame(tukey_m_outsider_control[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_m_outsider_control_df) # differences only for pro-pis and anti-pis respondents
+```
+
+#### Treatment conditions
+```{r}
+aov_m_outsider_treatment <- aov(data = dat %>% filter(source == "tvp" & topic == "outsiders"),
+                                m_outsider_threat ~ condition * pro_pis)
+summary(aov_m_outsider_treatment) # party main effect only
+tukey_m_outsider_treatment <- TukeyHSD(aov_m_outsider_treatment)
+tukey_m_outsider_treatment_df <- as.data.frame(tukey_m_outsider_treatment[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_m_outsider_treatment_df)
+```
+
+### DV: meta-perception of democratic opposition distrust
+
+#### Control conditions
+```{r}
+aov_m_opposition_control <- aov(data = dat %>% filter(condition == "pure_control" | source == "tvn"),
+                                m_oppo_distrust ~ condition * pro_pis)
+summary(aov_m_opposition_control) # party main effect
+tukey_m_opposition_control <- TukeyHSD(aov_m_opposition_control)
+tukey_m_opposition_control_df <- as.data.frame(tukey_m_opposition_control[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_m_opposition_control_df) # differences only for pro-pis and anti-pis respondents
+```
+
+#### Treatment conditions
+```{r}
+aov_m_opposition_treatment <- aov(data = dat %>% filter(source == "tvp" & topic == "politics"),
+                                  m_oppo_distrust ~ condition * pro_pis)
+summary(aov_m_opposition_treatment) # party main effect only
+tukey_m_opposition_treatment <- TukeyHSD(aov_m_opposition_treatment)
+tukey_m_opposition_treatment_df <- as.data.frame(tukey_m_opposition_treatment[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_m_opposition_treatment_df)
+```
+
+### DV: preference for inter-party cooperation
+
+#### Control conditions
+```{r}
+aov_coop_control <- aov(data = dat %>% filter(condition == "pure_control" | source == "tvn"),
+                        party_coop ~ condition * pro_pis)
+summary(aov_coop_control) # party main effect
+tukey_coop_control <- TukeyHSD(aov_coop_control)
+tukey_coop_control_df <- as.data.frame(tukey_coop_control[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_coop_control_df) # only 14 significant comparisons (for other analyzes abour 43)
+```
+
+#### Treatment conditions
+```{r}
+aov_coop_treatment <- aov(data = dat %>% filter(source == "tvp" & topic == "politics"),
+                          party_coop ~ condition * pro_pis)
+summary(aov_coop_treatment) # party main effect only
+tukey_coop_treatment <- TukeyHSD(aov_coop_treatment)
+tukey_coop_treatment_df <- as.data.frame(tukey_coop_treatment[[3]]) %>%
+  arrange(`p adj`)
+#print(tukey_coop_treatment_df) # only 3 significant differences (for other analyzes 4)
+```
 
 
 ## Treatment Effects
