@@ -458,11 +458,16 @@ lines(density((dat$m_oppo_distrust[dat$anti_pis == 1])), col="orange")
 ```
 
 ## ANOVAs for control and treatment conditions 
-
-Compares control conditions, i.e., pure control and TVN source with any topic (general, on-topic, and off-topic) both for blind and revealed conditions; and treatment conditions, i.e., TVP source with on-topic topics and both blind and revealed conditions.
+Compares control conditions, i.e., pure control and TVN source with any topic (general, on-topic, and off-topic) both for blind and revealed conditions; and treatment conditions, i.e.,
+TVP source with on-topic topics and both blind and revealed conditions.
 
 ```{r}
-# creates condition var for ANOVA
+library(dplyr)
+#options(scipen = 999)
+
+load("dat.RData")
+
+# create condition var for ANOVA
 dat <- dat %>%
   mutate(condition = as.factor(case_when(
     articles == 1 ~ (paste0(source, "_", treatment, "_", topic)),
@@ -590,7 +595,6 @@ tukey_coop_treatment_df <- as.data.frame(tukey_coop_treatment[[3]]) %>%
   arrange(`p adj`)
 #print(tukey_coop_treatment_df) # only 3 significant differences (for other analyzes 4)
 ```
-
 
 ## Treatment Effects
 
